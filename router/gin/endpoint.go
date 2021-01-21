@@ -62,18 +62,19 @@ type handler struct {
 type tagGenerator func(*http.Request) tag.Mutator
 
 func (h *handler) HandlerFunc(c *gin.Context) {
-	var traceEnd, statsEnd func()
+	var traceEnd, statsEnd func(*http.Response)
 	c.Request, traceEnd = h.startTrace(c.Writer, c.Request)
 	c.Writer, statsEnd = h.startStats(c.Writer, c.Request)
 
 	c.Set(opencensus.ContextKey, trace.FromContext(c.Request.Context()))
 	h.Handler(c)
 
-	statsEnd()
-	traceEnd()
+	resp := &http.Response{StatusCode: c.Writer.Status()}
+	statsEnd(resp)
+	traceEnd(resp)
 }
 
-func (h *handler) startTrace(_ gin.ResponseWriter, r *http.Request) (*http.Request, func()) {
+func (h *handler) startTrace(_ gin.ResponseWriter, r *http.Request) (*http.Request, func(*http.Response)) {
 	ctx := r.Context()
 	var span *trace.Span
 	sc, ok := h.extractSpanContext(r)
@@ -103,20 +104,25 @@ func (h *handler) startTrace(_ gin.ResponseWriter, r *http.Request) (*http.Reque
 			})
 		}
 	}
-
 	span.AddAttributes(opencensus.RequestAttrs(r)...)
-	return r.WithContext(ctx), span.End
+	return r.WithContext(ctx), func(response *http.Response) {
+		span.AddAttributes(opencensus.ResponseAttrs(response)...)
+		span.End()
+	}
 }
 
 func (h *handler) extractSpanContext(r *http.Request) (trace.SpanContext, bool) {
 	return h.propagation.SpanContextFromRequest(r)
 }
 
-func (h *handler) startStats(w gin.ResponseWriter, r *http.Request) (gin.ResponseWriter, func()) {
-	tags := make([]tag.Mutator, len(h.tags))
+func (h *handler) startStats(w gin.ResponseWriter, r *http.Request) (gin.ResponseWriter, func(*http.Response)) {
+	tags := make([]tag.Mutator, len(h.tags) + 2)
 	for i, t := range h.tags {
 		tags[i] = t(r)
 	}
+	tags[len(h.tags) - 2] = tag.Upsert(ochttp.Host, r.Host)
+	tags[len(h.tags) - 1] = tag.Upsert(ochttp.Method, r.Method)
+
 	ctx, _ := tag.New(r.Context(), tags...)
 	track := &trackingResponseWriter{
 		start:          time.Now(),
@@ -130,5 +136,7 @@ func (h *handler) startStats(w gin.ResponseWriter, r *http.Request) (gin.Respons
 		track.reqSize = r.ContentLength
 	}
 	stats.Record(ctx, ochttp.ServerRequestCount.M(1))
-	return track, track.end
+	return track, func(_ *http.Response) {
+		track.end()
+	}
 }
