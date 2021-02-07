@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -41,6 +42,14 @@ func Exporter(ctx context.Context, cfg opencensus.Config) (*prometheus.Exporter,
 
 	router := http.NewServeMux()
 	router.Handle("/metrics", exporter)
+	router.HandleFunc("/version", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "applicatoin/json")
+		je := json.NewEncoder(writer)
+		_ = je.Encode(map[string]interface{}{
+			RcraiAppCommit: RcraiAppCommit,
+			RcraiAppVersion: RcraiAppVersion,
+		})
+	})
 	server := http.Server{
 		Handler: router,
 		Addr:    fmt.Sprintf(":%d", cfg.Exporters.Prometheus.Port),
@@ -63,3 +72,8 @@ func Exporter(ctx context.Context, cfg opencensus.Config) (*prometheus.Exporter,
 }
 
 var errDisabled = errors.New("opencensus prometheus exporter disabled")
+
+var (
+	RcraiAppCommit = "unknown"
+	RcraiAppVersion = "unknown"
+)
