@@ -2,6 +2,7 @@ package opencensus
 
 import (
 	"context"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"net/http"
 
 	transport "github.com/devopsfaith/krakend/transport/http/client"
@@ -9,7 +10,9 @@ import (
 	"go.opencensus.io/trace"
 )
 
-var defaultClient = &http.Client{Transport: &ochttp.Transport{}}
+var defaultClient = &http.Client{Transport: &ochttp.Transport{
+	Propagation: &tracecontext.HTTPFormat{},
+}}
 
 func NewHTTPClient(ctx context.Context) *http.Client {
 	if !IsBackendEnabled() {
