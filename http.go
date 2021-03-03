@@ -40,9 +40,9 @@ func HTTPRequestExecutorFromConfig(clientFactory transport.HTTPClientFactory, cf
 				func(r *http.Request) tag.Mutator { return tag.Upsert(ochttp.KeyClientPath, pathExtractor(r)) },
 				func(r *http.Request) tag.Mutator { return tag.Upsert(ochttp.KeyClientMethod, req.Method) },
 			}
-			client.Transport = &Transport{Base: client.Transport, tags: tags}
+			client.Transport = &Transport{Base: client.Transport, tags: tags, Propagation: &tracecontext.HTTPFormat{}}
 		}
-
+		
 		return client.Do(req.WithContext(trace.NewContext(ctx, fromContext(ctx))))
 	}
 }
