@@ -28,7 +28,7 @@ func HTTPRequestExecutor(clientFactory transport.HTTPClientFactory) transport.HT
 	return func(ctx context.Context, req *http.Request) (*http.Response, error) {
 		client := clientFactory(ctx)
 		if _, ok := client.Transport.(*ochttp.Transport); !ok {
-			client.Transport = &ochttp.Transport{Base: client.Transport}
+			client.Transport = &ochttp.Transport{Base: client.Transport, Propagation: &tracecontext.HTTPFormat{}}
 		}
 		return client.Do(req.WithContext(trace.NewContext(ctx, fromContext(ctx))))
 	}
