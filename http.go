@@ -2,6 +2,7 @@ package opencensus
 
 import (
 	"context"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"net/http"
 
 	"github.com/luraproject/lura/config"
@@ -11,7 +12,9 @@ import (
 	"go.opencensus.io/trace"
 )
 
-var defaultClient = &http.Client{Transport: &ochttp.Transport{}}
+var defaultClient = &http.Client{Transport: &ochttp.Transport{
+	Propagation: &tracecontext.HTTPFormat{},
+}}
 
 func NewHTTPClient(ctx context.Context) *http.Client {
 	if !IsBackendEnabled() {
