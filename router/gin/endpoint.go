@@ -117,13 +117,10 @@ func (h *handler) extractSpanContext(r *http.Request) (trace.SpanContext, bool) 
 }
 
 func (h *handler) startStats(w gin.ResponseWriter, r *http.Request) (gin.ResponseWriter, func(*http.Response)) {
-	tags := make([]tag.Mutator, len(h.tags) + 2)
+	tags := make([]tag.Mutator, len(h.tags))
 	for i, t := range h.tags {
 		tags[i] = t(r)
 	}
-	tags[len(h.tags) - 2] = tag.Upsert(ochttp.Host, r.Host)
-	tags[len(h.tags) - 1] = tag.Upsert(ochttp.Method, r.Method)
-
 	ctx, _ := tag.New(r.Context(), tags...)
 	track := &trackingResponseWriter{
 		start:          time.Now(),

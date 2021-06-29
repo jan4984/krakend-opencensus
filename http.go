@@ -42,7 +42,7 @@ func HTTPRequestExecutorFromConfig(clientFactory transport.HTTPClientFactory, cf
 			}
 			client.Transport = &Transport{Base: client.Transport, tags: tags, Propagation: &tracecontext.HTTPFormat{}}
 		}
-		
+
 		return client.Do(req.WithContext(trace.NewContext(ctx, fromContext(ctx))))
 	}
 }
